@@ -1,6 +1,6 @@
 # keeb editor
 
-A browser layout editor for [keeb](../keeb), the fully customizable on-screen keyboard, in the spirit of VIA for QMK. It runs anywhere a modern browser does (desktop or tablet) and needs no install.
+A browser layout editor for [keeb](https://github.com/graphicmismatch/keeb), the fully customizable on-screen keyboard, in the spirit of VIA for QMK. It runs anywhere a modern browser does (desktop or tablet) and needs no install.
 
 - **Visual editing.** Drag keys to reorder them, including across rows. Click a key to edit its tap, label, width, long-press list, all 8 flick directions plus out-and-back, flick angles, mod-tap or tap-dance behavior, and swipeability.
 - **Keycode palette.** Pick actions VIA-style, grouped as Basic, Keys, Layers (MO/TG/TO/OSL for every layer), Editing (cut/copy/paste, undo/redo, word jumps, Caps Word, case toggle), Media, System (Repeat, dynamic macros, hide or switch keyboard) and Special. You can also type any action in keeb's short syntax (`@macro:h|i|@enter`).
