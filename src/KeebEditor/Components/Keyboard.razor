@@ -1,0 +1,132 @@
+@* The layer drawn from Keeb.Core.Geometry, in the preview theme. Click selects, drag moves keys (drop on a key's
+   left or right half). In test mode, clicks type through the real KeyboardState instead, like the phone would. *@
+@{
+    var t = Ed.Theme;
+    var rows = Ed.Layer.Rows;
+    float units = rows.Count == 0 ? 1 : Math.Max(1, rows.Max(r => r.Keys.Sum(k => k.Width)));
+    float h = W / units * rows.Sum(r => r.Height) * 1.15f;
+    var geo = new Geometry(Ed.Layout, Ed.LayerId, W, Math.Max(h, 1));
+}
+<div class="kb @(dragging is not null ? "dragging" : "") @(Testing ? "testing" : "")"
+     style="aspect-ratio:@W/@geo.Height;background:@Css(t.Background)" role="grid" aria-label="Keyboard layer @Ed.LayerId">
+    @foreach (var box in geo.Keys)
+    {
+        var k = box.Key;
+        var r = box.Rect;
+        bool mod = k.Tap is not (TextAction or SpaceAction);
+        float font = Math.Min(r.H * 0.36f, r.W * 0.46f) / W * 100;
+        var icon = k.Label is null ? Icons.For(k.Tap, tester?.Shift ?? false, tester?.Caps ?? false) : null;
+        var longPress = Ed.Layout.LongPressFor(k);
+        <div class="key @(k == Ed.Selected ? "sel" : "") @(k == dragging ? "ghost" : "")"
+             style="left:@P(r.X / W);top:@P(r.Y / geo.Height);width:@P(r.W / W);height:@P(r.H / geo.Height);font-size:@(F(font))cqw"
+             draggable="@((!Testing).ToString().ToLowerInvariant())" tabindex="0" role="gridcell"
+             aria-label="@Describe(k)" aria-selected="@(k == Ed.Selected)"
+             @ondragstart="() => dragging = k" @ondragend="() => dragging = null"
+             @onclick="() => Click(k)" @onkeydown="e => Keydown(e, k)">
+            <div class="cap" style="background:@Css(mod ? t.ModKey : t.Key);color:@Css(t.Text)">
+                @if (Editor.IconPath(icon) is { } d)
+                {
+                    <svg class="icon main" viewBox="0 -960 960 960" aria-hidden="true"><path d="@d" fill="currentColor" /></svg>
+                }
+                else
+                {
+                    <span class="main @(k.Tap is SpaceAction && k.Label is null ? "quiet" : "")"
+                          style="@(k.Tap is SpaceAction && k.Label is null ? $"color:{Css(t.HintText)}" : "")">@Label(k)</span>
+                }
+                @foreach (var (dir, a) in k.Flick)
+                {
+                    if (dir == FlickDir.Return) continue;
+                    <span class="flick @dir" style="color:@Css(t.HintText)"><ActionView Ed="Ed" Action="a" /></span>
+                }
+                @if (k.Flick.Count == 0 && longPress.Count > 0)
+                {
+                    <span class="hint" style="color:@Css(t.HintText)"><ActionView Ed="Ed" Action="longPress[0]" /></span>
+                }
+            </div>
+            @if (dragging is not null && dragging != k)
+            {
+                <div class="drop left" @ondragover:preventDefault @ondrop="() => Drop(k, false)"></div>
+                <div class="drop right" @ondragover:preventDefault @ondrop="() => Drop(k, true)"></div>
+            }
+        </div>
+    }
+</div>
+
+@if (Testing)
+{
+    <div class="tester">
+        <div class="suggest">@foreach (var w in suggestions) { <span>@w</span> }</div>
+        <pre class="typed" aria-live="polite">@typed<u>@composing</u><span class="caret">▏</span></pre>
+        <div class="row gap">
+            <span class="muted">@lastEffect</span>
+            <button class="flat" @onclick="ResetTester">Clear</button>
+        </div>
+    </div>
+}
+
+@code {
+    const float W = 1000;
+    [Parameter, EditorRequired] public Editor Ed { get; set; } = null!;
+    [Parameter] public bool Testing { get; set; }
+
+    Key? dragging;
+    KeyboardState? tester;
+    string typed = "", composing = "", lastEffect = "";
+    List<string> suggestions = [];
+
+    static string P(float f) => (f * 100).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) + "%";
+    static string F(float f) => f.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+    /// <summary>"#AARRGGBB" / "#RRGGBB" to CSS "#RRGGBBAA".</summary>
+    public static string Css(string hex) { var h = hex.TrimStart('#'); return h.Length == 8 ? $"#{h[2..]}{h[..2]}" : $"#{h}"; }
+
+    string Label(Key k) => Testing && tester is not null ? tester.LabelFor(k) is { Length: > 0 } s ? s : Ed.Label(k) : Ed.Label(k);
+    string Describe(Key k) => (k.Label ?? Ed.Label(k.Tap)) is { Length: > 0 } s ? s : k.Tap.GetType().Name.Replace("Action", "");
+
+    void Drop(Key target, bool after)
+    {
+        if (dragging is { } key) Ed.Change(() => LayoutEdit.Move(Ed.Layer, key, target, after));
+        dragging = null;
+    }
+
+    void Keydown(KeyboardEventArgs e, Key k)
+    {
+        if (e.Key is "Enter" or " ") Click(k);
+    }
+
+    void Click(Key k)
+    {
+        if (!Testing) { Ed.Select(k); return; }
+        tester ??= New();
+        Apply(tester.Do(k.Tap));
+    }
+
+    KeyboardState New()
+    {
+        var kb = new KeyboardState([Ed.Layout], new Settings());
+        kb.StartInput(false);
+        return kb;
+    }
+
+    public void ResetTester() { tester = null; typed = composing = lastEffect = ""; suggestions = []; }
+
+    protected override void OnParametersSet() { if (!Testing) ResetTester(); }
+
+    void Apply(List<Effect> effects)
+    {
+        foreach (var fx in effects)
+            switch (fx)
+            {
+                case Commit c: typed += c.Text; composing = ""; break;
+                case SetComposing s: composing = s.Text; break;
+                case FinishComposing: typed += composing; composing = ""; break;
+                case DeleteBackward d: for (int i = 0; i < d.Count; i++) if (typed.Length > 0) typed = typed[..^1]; break;
+                case DeleteText d: typed = typed[..Math.Max(0, typed.Length - d.Length)]; break;
+                case DeleteWordsBackward: typed = typed.TrimEnd(); typed = typed[..(typed.LastIndexOf(' ') + 1)]; break;
+                case Enter: typed += "\n"; break;
+                case SendKey k: lastEffect = $"sends {(k.Mods != Mods.None ? k.Mods + "+" : "")}{k.Code}"; break;
+                case Utility u: lastEffect = $"does {u.Util}"; break;
+                case Suggestions s: suggestions = [.. s.Words]; break;
+                case ShowLayout l: Ed.LayerId = l.LayerId; break;
+            }
+    }
+}

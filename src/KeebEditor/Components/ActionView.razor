@@ -1,0 +1,13 @@
+@* An action as the keyboard would show it: its icon, else its label. *@
+@if (Editor.Icon(Action) is { } icon)
+{
+    <Icon Name="@icon" /><span class="sr-only">@Ed.Label(Action)</span>
+}
+else
+{
+    <span>@Ed.Label(Action)</span>
+}
+@code {
+    [Parameter, EditorRequired] public Editor Ed { get; set; } = null!;
+    [Parameter, EditorRequired] public KeyAction Action { get; set; } = null!;
+}

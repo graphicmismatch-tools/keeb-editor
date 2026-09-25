@@ -1,0 +1,9 @@
+@* A Material Symbols icon from Keeb.Render.Icons, drawn in the current text color. *@
+@if (Editor.IconPath(Name) is { } d)
+{
+    <svg class="icon" viewBox="0 -960 960 960" aria-hidden="true" style="width:@Size;height:@Size"><path d="@d" fill="currentColor" /></svg>
+}
+@code {
+    [Parameter] public string? Name { get; set; }
+    [Parameter] public string Size { get; set; } = "1.25em";
+}

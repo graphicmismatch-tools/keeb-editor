@@ -1,0 +1,117 @@
+@page "/"
+@implements IDisposable
+@inject Editor Ed
+@inject IJSRuntime JS
+
+<PageTitle>keeb layout editor — @Ed.Layout.Name</PageTitle>
+
+<header class="toolbar">
+    <strong class="brand"><Icon Name="keyboard" /> keeb editor</strong>
+    <label class="inline">Start from
+        <select @onchange="StartFrom" aria-label="Start from a built-in layout">
+            <option value="">choose…</option>
+            @foreach (var n in Json.BuiltinLayoutNames) { <option value="@n">@n</option> }
+        </select>
+    </label>
+    <label class="flat button">
+        <Icon Name="upload_file" /> Open .json
+        <InputFile OnChange="Open" accept=".json,application/json" class="sr-only" />
+    </label>
+    <button class="primary" @onclick="Download"><Icon Name="save" /> Download .json</button>
+    <span class="grow"></span>
+    <button class="iconbtn" title="Undo" disabled="@(!Ed.CanUndo)" @onclick="Ed.Undo"><Icon Name="undo" /></button>
+    <button class="iconbtn" title="Redo" disabled="@(!Ed.CanRedo)" @onclick="Ed.Redo"><Icon Name="redo" /></button>
+    <label class="inline">Preview theme
+        <select value="@Ed.PreviewTheme" @onchange="e => { Ed.PreviewTheme = (string)e.Value!; }">
+            <option value="@Themes.Auto">follow system</option>
+            @foreach (var n in Themes.Presets.Keys) { <option value="@n">@n</option> }
+        </select>
+    </label>
+    <button class="@(testing ? "primary" : "flat")" title="Type on the preview" aria-pressed="@testing" @onclick="() => testing = !testing"><Icon Name="keyboard" /> Test typing</button>
+    <button class="@(showJson ? "primary" : "flat")" title="Show the layout as JSON" aria-pressed="@showJson" @onclick="ToggleJson"><Icon Name="data_object" /> JSON</button>
+</header>
+
+@if (Ed.Error is { } err)
+{
+    <div class="banner warn" role="alert">@err</div>
+}
+@if (Ed.Problems is [_, ..] problems)
+{
+    <div class="banner warn" role="status">This layout won't load on the phone yet: @string.Join("; ", problems)</div>
+}
+
+<main class="panes">
+    <aside class="left">
+        <LayoutPanel Ed="Ed" />
+    </aside>
+
+    <section class="center">
+        <nav class="tabs" role="tablist" aria-label="Layers">
+            @foreach (var l in Ed.Layout.Layers)
+            {
+                var id = l.Id;
+                <button role="tab" aria-selected="@(id == Ed.LayerId)" class="tab @(id == Ed.LayerId ? "on" : "")" @onclick="() => Ed.ShowLayer(id)">@id</button>
+            }
+        </nav>
+        <Keyboard Ed="Ed" Testing="testing" />
+        @if (showJson)
+        {
+            <div class="json">
+                <textarea class="mono" spellcheck="false" @bind="json" rows="18" aria-label="Layout JSON"></textarea>
+                <div class="row gap">
+                    <button class="primary" @onclick="ApplyJson">Apply JSON</button>
+                    <span class="muted">Edits here replace the layout (undoable).</span>
+                </div>
+            </div>
+        }
+        <Palette Ed="Ed" />
+    </section>
+
+    <aside class="right">
+        <h2>Key</h2>
+        <Inspector Ed="Ed" />
+    </aside>
+</main>
+
+<footer class="muted">
+    Load the downloaded file on your phone: keeb → Layouts → Import. Layout format: see the keeb README.
+    MIT © graphicmismatch · icons: Material Symbols (Apache-2.0)
+</footer>
+
+@code {
+    bool testing, showJson;
+    string json = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        Ed.Changed += OnChanged;
+        Ed.SystemDark = await JS.InvokeAsync<bool>("keeb.dark");
+        if (await JS.InvokeAsync<string?>("keeb.load", "keeb.draft") is { Length: > 0 } draft) Ed.TryLoadJson(draft, keepHistory: false);
+    }
+
+    void OnChanged()
+    {
+        if (showJson) json = Ed.SaveJson();
+        _ = JS.InvokeVoidAsync("keeb.save", "keeb.draft", Ed.SaveJson()); // autosave the working copy
+        StateHasChanged();
+    }
+
+    public void Dispose() => Ed.Changed -= OnChanged;
+
+    void StartFrom(ChangeEventArgs e)
+    {
+        if (e.Value is string { Length: > 0 } name) Ed.Load(Json.BuiltinLayout(name), keepHistory: true);
+    }
+
+    async Task Open(InputFileChangeEventArgs e)
+    {
+        using var reader = new StreamReader(e.File.OpenReadStream(maxAllowedSize: 4 * 1024 * 1024));
+        Ed.TryLoadJson(await reader.ReadToEndAsync());
+    }
+
+    async Task Download() => await JS.InvokeVoidAsync("keeb.download", $"{Ed.Layout.Name}.json", Ed.SaveJson());
+
+    void ToggleJson() { showJson = !showJson; json = Ed.SaveJson(); }
+
+    void ApplyJson() => Ed.TryLoadJson(json);
+}

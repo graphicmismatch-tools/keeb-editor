@@ -1,0 +1,75 @@
+@* Everything about the selected key. Actions are typed in keeb's action syntax ("a", "@shift", "@mo:nav", "@copy")
+   or picked from the palette; edits go through Editor.Change so they undo and bad input is rejected with a message. *@
+@if (Ed.Selected is not { } k)
+{
+    <p class="muted">Click a key to edit it. Drag keys to move them. Pick actions from the palette, or type them:</p>
+    <p class="muted mono">a &nbsp; @@shift &nbsp; @@mo:nav &nbsp; @@copy &nbsp; @@macro:h|i|@@enter</p>
+}
+else
+{
+    var loc = LayoutEdit.Locate(Ed.Layer, k);
+    var row = loc?.Row;
+    <div class="fields">
+        <label>Tap <input class="mono" value="@ActionSyntax.Format(k.Tap)" @onchange="e => Set(e, s => k.Tap = ActionSyntax.Parse(s))" /></label>
+        <label>Label <input value="@k.Label" placeholder="(from the tap)" @onchange="e => Set(e, s => k.Label = s.Length == 0 ? null : s)" /></label>
+        <div class="two">
+            <label>Width <input type="number" step="0.25" min="0.1" value="@F(k.Width)" @onchange="e => Set(e, s => k.Width = Math.Clamp(Num(s), 0.1f, 20))" /></label>
+            @if (row is not null)
+            {
+                <label>Row height <input type="number" step="0.1" min="0.2" value="@F(row.Height)" @onchange="e => Set(e, s => row.Height = Math.Clamp(Num(s), 0.2f, 5))" /></label>
+            }
+        </div>
+        <label>Long-press <span class="muted">(space separated)</span>
+            <input class="mono" value="@string.Join(' ', k.LongPress.Select(ActionSyntax.Format))"
+                   @onchange="e => Set(e, s => k.LongPress = [.. s.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(ActionSyntax.Parse)])" />
+        </label>
+
+        <fieldset>
+            <legend>Flick <span class="muted">(centre = out and back)</span></legend>
+            <div class="flickgrid">
+                @foreach (var dir in Cells)
+                {
+                    <input class="mono" aria-label="Flick @dir" placeholder="@dir" value="@(k.Flick.TryGetValue(dir, out var a) ? ActionSyntax.Format(a) : "")"
+                           @onchange="e => Set(e, s => { if (s.Length == 0) k.Flick.Remove(dir); else k.Flick[dir] = ActionSyntax.Parse(s); })" />
+                }
+            </div>
+            <label>Flick angles for this key <span class="muted">(blank = layout's)</span>
+                <input class="mono" placeholder="N=45-135 E=315-45" value="@ActionSyntax.FormatZones(k.FlickZones)"
+                       @onchange="e => Set(e, s => k.FlickZones = ActionSyntax.ParseZones(s))" />
+            </label>
+        </fieldset>
+
+        <label>Behavior <span class="muted">@@modtap:@@mo:nav:200 or @@dance:a|b|c</span>
+            <input class="mono" value="@ActionSyntax.FormatBehavior(k.Behavior)" @onchange="e => Set(e, s => k.Behavior = ActionSyntax.ParseBehavior(s))" />
+        </label>
+        <div class="two">
+            <label>Id <span class="muted">(combos, leader)</span><input value="@k.Id" @onchange="e => Set(e, s => k.Id = s.Length == 0 ? null : s)" /></label>
+            <label class="check"><input type="checkbox" checked="@k.Swipeable" @onchange="e => Ed.Change(() => k.Swipeable = e.Value is true)" /> Swipeable</label>
+        </div>
+
+        <div class="buttons">
+            <button class="flat" @onclick="() => Ed.Change(() => Ed.Select(LayoutEdit.InsertKey(Ed.Layer, k, after: false)))">Key before</button>
+            <button class="flat" @onclick="() => Ed.Change(() => Ed.Select(LayoutEdit.InsertKey(Ed.Layer, k, after: true)))">Key after</button>
+            <button class="flat" @onclick="() => Ed.Change(() => Ed.Select(LayoutEdit.Duplicate(Ed.Layer, k)))">Duplicate</button>
+            <button class="flat danger" @onclick="() => { Ed.Change(() => LayoutEdit.DeleteKey(Ed.Layer, k)); Ed.Select(null); }">Delete key</button>
+        </div>
+        @if (row is not null)
+        {
+            var index = Ed.Layer.Rows.IndexOf(row);
+            <div class="buttons">
+                <button class="flat" @onclick="() => Ed.Change(() => LayoutEdit.InsertRow(Ed.Layer, index))">Row above</button>
+                <button class="flat" @onclick="() => Ed.Change(() => LayoutEdit.InsertRow(Ed.Layer, index + 1))">Row below</button>
+                <button class="flat danger" @onclick="() => { Ed.Change(() => Ed.Layer.Rows.Remove(row)); Ed.Select(null); }">Delete row</button>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public Editor Ed { get; set; } = null!;
+    static readonly FlickDir[] Cells = [FlickDir.NW, FlickDir.N, FlickDir.NE, FlickDir.W, FlickDir.Return, FlickDir.E, FlickDir.SW, FlickDir.S, FlickDir.SE];
+
+    void Set(ChangeEventArgs e, Action<string> apply) => Ed.Change(() => apply((e.Value as string ?? "").Trim()));
+    static float Num(string s) => float.Parse(s, System.Globalization.CultureInfo.InvariantCulture);
+    static string F(float f) => f.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+}

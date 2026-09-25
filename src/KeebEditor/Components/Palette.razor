@@ -1,0 +1,48 @@
+@* VIA-style keycode palette (Keeb.Core.Keycodes): pick where the action goes, then click one. *@
+@{ var groups = Keycodes.For(Ed.Layout); var current = groups.FirstOrDefault(g => g.Group == group); }
+<div class="palette">
+    <div class="row gap wrap">
+        <label class="inline">Assign to
+            <select value="@Ed.Target" @onchange="e => Ed.Target = (string)e.Value!">
+                <option value="tap">Tap</option>
+                <option value="long">Long-press (add)</option>
+                <option value="hold">Hold (mod-tap)</option>
+                @foreach (var d in Enum.GetNames<FlickDir>()) { <option value="@d">Flick @d</option> }
+            </select>
+        </label>
+        <div class="tabs" role="tablist">
+            @foreach (var g in groups)
+            {
+                <button role="tab" aria-selected="@(g.Group == group)" class="tab @(g.Group == group ? "on" : "")" @onclick="() => group = g.Group">@g.Group</button>
+            }
+        </div>
+    </div>
+    @if (Ed.Selected is null) { <p class="muted">Select a key on the keyboard, then pick what it should do.</p> }
+    <div class="codes">
+        @foreach (var a in current.Actions ?? [])
+        {
+            <button class="code" title="@ActionSyntax.Format(a)" @onclick="() => Ed.Assign(a)">
+                <ActionView Ed="Ed" Action="a" />
+                @if (a is LayerAction l) { <small>@l.Mode</small> }
+            </button>
+        }
+    </div>
+    <div class="row gap">
+        <input class="mono grow" placeholder="Or type an action: @@macro:h|i|@@enter, @@key:F5, é …" @bind="custom" @onkeydown="EnterAssigns" />
+        <button class="flat" @onclick="AssignCustom">Assign</button>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Editor Ed { get; set; } = null!;
+    string group = "Basic";
+    string custom = "";
+
+    void EnterAssigns(KeyboardEventArgs e) { if (e.Key == "Enter") AssignCustom(); }
+
+    void AssignCustom()
+    {
+        try { Ed.Assign(ActionSyntax.Parse(custom.Trim())); custom = ""; }
+        catch (Exception e) { Ed.Change(() => throw new FormatException(e.Message)); } // shows the message, changes nothing
+    }
+}

@@ -1,0 +1,141 @@
+@* Layout-wide settings: identity, layers, input method, accents, flick angles, combos, leaders and own colors. *@
+@{ var L = Ed.Layout; }
+<section>
+    <h2>Layout</h2>
+    <div class="fields">
+        <label>Name <input value="@L.Name" @onchange="e => Set(e, s => L.Name = s)" /></label>
+        <div class="two">
+            <label>Language <input value="@L.Language" placeholder="en, de, ja…" @onchange="e => Set(e, s => L.Language = s)" /></label>
+            <label>Font <input value="@L.Font" placeholder="(system)" @onchange="e => Set(e, s => L.Font = s.Length == 0 ? null : s)" /></label>
+        </div>
+        <label>Input method
+            <input class="mono" list="composers" value="@L.Composer" placeholder="(none)" @onchange="e => Set(e, s => L.Composer = s.Length == 0 ? null : s)" />
+            <datalist id="composers">
+                @foreach (var c in Composers) { <option value="@c" /> }
+            </datalist>
+        </label>
+    </div>
+</section>
+
+<section>
+    <h2>Layers</h2>
+    <ul class="layers">
+        @foreach (var layer in L.Layers)
+        {
+            var id = layer.Id;
+            <li class="@(id == Ed.LayerId ? "on" : "")" @onclick="() => Ed.ShowLayer(id)">
+                <input class="rename mono" aria-label="Layer name (edit to rename)" value="@id" @onchange="e => Rename(id, e)" @onclick:stopPropagation />
+                @if (id == L.Layers[0].Id) { <span class="muted">base</span> }
+                else
+                {
+                    <button class="iconbtn" title="Delete layer @id" @onclick="() => Ed.Change(() => { LayoutEdit.DeleteLayer(L, id); Ed.LayerId = L.Layers[0].Id; })" @onclick:stopPropagation><Icon Name="delete" /></button>
+                }
+            </li>
+        }
+    </ul>
+    <div class="row gap">
+        <input class="mono grow" placeholder="new layer id" @bind="newLayer" />
+        <button class="flat" @onclick="AddLayer">Add layer</button>
+    </div>
+</section>
+
+<section>
+    <h2>Typing extras</h2>
+    <div class="fields">
+        <label>Accents <span class="muted">(one per line: e=éèêë)</span>
+            <textarea rows="3" class="mono" @onchange="e => Set(e, s => L.Accents = s.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim().Split('=', 2)).Where(p => p.Length == 2 && p[0].Length > 0).ToDictionary(p => p[0], p => p[1]))">@string.Join('\n', L.Accents.Select(kv => $"{kv.Key}={kv.Value}"))</textarea>
+        </label>
+        <label>Flick angles <span class="muted">(degrees, 0 = east, counter-clockwise; blank = 45° sectors)</span>
+            <input class="mono" placeholder="N=45-135 E=315-45 S=225-315 W=135-225" value="@ActionSyntax.FormatZones(L.FlickZones)" @onchange="e => Set(e, s => L.FlickZones = ActionSyntax.ParseZones(s))" />
+        </label>
+        <label>Combos <span class="muted">(one per line: key ids + action [ms], e.g. j k = @@key:Esc 60)</span>
+            <textarea rows="3" class="mono" @onchange="e => Set(e, s => L.Combos = ParseCombos(s))">@string.Join('\n', L.Combos.Select(c => $"{string.Join(' ', c.Keys)} = {ActionSyntax.Format(c.Action)} {c.WindowMs}"))</textarea>
+        </label>
+        <label>Leader sequences <span class="muted">(one per line: sequence = action, e.g. sig = — graphicmismatch)</span>
+            <textarea rows="3" class="mono" @onchange="e => Set(e, s => L.Leaders = ParseLeaders(s))">@string.Join('\n', L.Leaders.Select(l => $"{l.Sequence} = {ActionSyntax.Format(l.Action)}"))</textarea>
+        </label>
+    </div>
+</section>
+
+<section>
+    <h2>Colors</h2>
+    @if (L.Theme is null)
+    {
+        <p class="muted">Follows the theme picked on the phone. Give the layout its own colors to keep them everywhere.</p>
+        <button class="flat" @onclick="() => Ed.Change(() => L.Theme = Ed.Theme.Clone())">Use own colors</button>
+    }
+    else
+    {
+        var theme = L.Theme;
+        <div class="colors">
+            @foreach (var prop in typeof(Theme).GetProperties().Where(p => p.PropertyType == typeof(string)))
+            {
+                var value = (string)prop.GetValue(theme)!;
+                <label class="color"><input type="color" value="@Rgb(value)" @onchange="e => Ed.Change(() => prop.SetValue(theme, Argb((string)e.Value!, value)))" />@prop.Name</label>
+            }
+        </div>
+        <ul class="checks">
+            @foreach (var (label, fg, bg, min) in Checks(theme))
+            {
+                var ratio = Themes.Contrast(fg, bg);
+                <li class="@(ratio >= min ? "ok" : "warn")">@(ratio >= min ? "✓" : "⚠") @label @ratio.ToString("0.0"):1 <span class="muted">(aim for @min:1)</span></li>
+            }
+        </ul>
+        <button class="flat" @onclick="() => Ed.Change(() => L.Theme = null)">Follow the phone's theme instead</button>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public Editor Ed { get; set; } = null!;
+    string newLayer = "";
+
+    static readonly string[] Composers =
+    [
+        "hangul", "compose", "translit:itrans-hi", "translit:itrans-hi@bn", "translit:itrans-hi@ta", "translit:latin-ru", "translit:sera-am",
+        "telex", "vni", "kanakanji:romaji-hiragana", "kanakanji", "pinyin", "zhuyin", "cangjie", "multitap", "t9", "morse", "hex",
+    ];
+
+    void Set(ChangeEventArgs e, Action<string> apply) => Ed.Change(() => apply((e.Value as string ?? "").Trim()));
+
+    void Rename(string from, ChangeEventArgs e)
+    {
+        var to = (e.Value as string ?? "").Trim();
+        Ed.Change(() => { LayoutEdit.RenameLayer(Ed.Layout, from, to); if (Ed.LayerId == from) Ed.LayerId = to; });
+    }
+
+    void AddLayer()
+    {
+        var id = newLayer.Trim();
+        if (id.Length == 0) return;
+        Ed.Change(() => LayoutEdit.AddLayer(Ed.Layout, id));
+        Ed.ShowLayer(id);
+        newLayer = "";
+    }
+
+    static List<Combo> ParseCombos(string s) => [.. s.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line =>
+    {
+        var parts = line.Split('=', 2);
+        if (parts.Length != 2) throw new FormatException($"combo '{line}' needs 'keys = action'");
+        var rhs = parts[1].Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        int ms = 60;
+        if (rhs.Length > 1 && int.TryParse(rhs[^1], out var n)) (ms, rhs) = (n, rhs[..^1]); // optional trailing window
+        return new Combo([.. parts[0].Split(' ', StringSplitOptions.RemoveEmptyEntries)], ActionSyntax.Parse(string.Join(' ', rhs)), ms);
+    })];
+
+    static List<LeaderSequence> ParseLeaders(string s) => [.. s.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line =>
+    {
+        var parts = line.Split('=', 2);
+        if (parts.Length != 2) throw new FormatException($"leader '{line}' needs 'sequence = action'");
+        return new LeaderSequence(parts[0].Trim(), ActionSyntax.Parse(parts[1].Trim()));
+    })];
+
+    static string Rgb(string argb) { var h = argb.TrimStart('#'); return "#" + (h.Length == 8 ? h[2..] : h).ToLowerInvariant(); }
+    /// <summary>The color input has no alpha; keep the old alpha.</summary>
+    static string Argb(string rgb, string old) { var o = old.TrimStart('#'); return "#" + (o.Length == 8 ? o[..2] : "FF") + rgb.TrimStart('#').ToUpperInvariant(); }
+
+    static (string, string, string, double)[] Checks(Theme t) =>
+    [
+        ("Key labels", t.Text, t.Key, 7), ("Modifier labels", t.Text, t.ModKey, 7), ("Hints", t.HintText, t.Key, 4.5),
+        ("Suggestion highlight", t.Accent, t.Background, 4.5), ("Selected popup", t.OnAccent, t.Accent, 4.5),
+    ];
+}
