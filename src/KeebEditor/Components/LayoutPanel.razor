@@ -18,6 +18,19 @@
 </section>
 
 <section>
+    <h2>Key look</h2>
+    <div class="fields">
+        <p class="muted">For every key; a key's own values win. Blank = the phone's setting.</p>
+        <div class="two">
+            <label>Margin <span class="muted">dp, around each key</span><input type="number" step="1" min="0" max="40" placeholder="@D.KeyMargin" value="@Inspector.Dp(L.KeyMargin)" @onchange="e => Set(e, s => L.KeyMargin = Inspector.ParseDp(s))" /></label>
+            <label>Padding <span class="muted">dp, inside each key</span><input type="number" step="1" min="0" max="40" placeholder="@D.KeyPadding" value="@Inspector.Dp(L.KeyPadding)" @onchange="e => Set(e, s => L.KeyPadding = Inspector.ParseDp(s))" /></label>
+        </div>
+        <span class="muted">Label sizes, × normal</span>
+        <Scales Ed="Ed" Value="L.LabelScale" Set="v => L.LabelScale = v" Placeholder="1" />
+    </div>
+</section>
+
+<section>
     <h2>Layers</h2>
     <ul class="layers">
         @foreach (var layer in L.Layers)
@@ -88,6 +101,7 @@
 @code {
     [Parameter, EditorRequired] public Editor Ed { get; set; } = null!;
     string newLayer = "";
+    static readonly Settings D = new(); // the phone's defaults
 
     static readonly string[] Composers =
     [

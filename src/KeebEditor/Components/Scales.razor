@@ -1,0 +1,25 @@
+@* The label-size multipliers (Keeb.Core.LabelScale: label, flick, hint, popup, preview). Blank inherits. *@
+<div class="three">
+    @foreach (var (name, get, put) in LabelScale.Parts)
+    {
+        <label>@name <input type="number" step="0.1" min="@LabelScale.Min" max="@LabelScale.Max" placeholder="@Placeholder"
+                            value="@(F(Value is null ? null : get(Value)))" @onchange="e => Ed.Change(() => Update(put, e))" /></label>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Editor Ed { get; set; } = null!;
+    [Parameter] public LabelScale? Value { get; set; }
+    [Parameter, EditorRequired] public Action<LabelScale?> Set { get; set; } = null!;
+    [Parameter] public string Placeholder { get; set; } = "";
+
+    void Update(Action<LabelScale, float?> put, ChangeEventArgs e)
+    {
+        var s = (e.Value as string ?? "").Trim();
+        var next = Value ?? new LabelScale();
+        put(next, s.Length == 0 ? null : Math.Clamp(float.Parse(s, System.Globalization.CultureInfo.InvariantCulture), LabelScale.Min, LabelScale.Max));
+        Set(next.IsEmpty ? null : next);
+    }
+
+    static string F(float? f) => f?.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) ?? "";
+}

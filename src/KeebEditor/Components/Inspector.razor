@@ -33,10 +33,29 @@ else
                            @onchange="e => Set(e, s => { if (s.Length == 0) k.Flick.Remove(dir); else k.Flick[dir] = ActionSyntax.Parse(s); })" />
                 }
             </div>
+            <label>Circle <span class="muted">(draw a loop on the key; blank = tap)</span>
+                <input class="mono" value="@(k.Circle is null ? "" : ActionSyntax.Format(k.Circle))" @onchange="e => Set(e, s => k.Circle = s.Length == 0 ? null : ActionSyntax.Parse(s))" />
+            </label>
+            <label>Out and back, per direction <span class="muted">(N=U E=B)</span>
+                <input class="mono" placeholder="(centre box, then the flick)" value="@ActionSyntax.FormatDirs(k.FlickBack)" @onchange="e => Set(e, s => k.FlickBack = ActionSyntax.ParseDirs(s))" />
+            </label>
+            <label>Long flick, per direction <span class="muted">(N=1 E=2)</span>
+                <input class="mono" placeholder="(the normal flick)" value="@ActionSyntax.FormatDirs(k.LongFlick)" @onchange="e => Set(e, s => k.LongFlick = ActionSyntax.ParseDirs(s))" />
+            </label>
             <label>Flick angles for this key <span class="muted">(blank = layout's)</span>
                 <input class="mono" placeholder="N=45-135 E=315-45" value="@ActionSyntax.FormatZones(k.FlickZones)"
                        @onchange="e => Set(e, s => k.FlickZones = ActionSyntax.ParseZones(s))" />
             </label>
+        </fieldset>
+
+        <fieldset>
+            <legend>Look <span class="muted">(blank = layout's)</span></legend>
+            <div class="two">
+                <label>Margin <span class="muted">dp</span><input type="number" step="1" min="0" max="40" value="@Dp(k.Margin)" @onchange="e => Set(e, s => k.Margin = ParseDp(s))" /></label>
+                <label>Padding <span class="muted">dp</span><input type="number" step="1" min="0" max="40" value="@Dp(k.Padding)" @onchange="e => Set(e, s => k.Padding = ParseDp(s))" /></label>
+            </div>
+            <span class="muted">Label sizes, × normal</span>
+            <Scales Ed="Ed" Value="k.LabelScale" Set="v => k.LabelScale = v" />
         </fieldset>
 
         <label>Behavior <span class="muted">@@modtap:@@mo:nav:200 or @@dance:a|b|c</span>
@@ -71,5 +90,8 @@ else
 
     void Set(ChangeEventArgs e, Action<string> apply) => Ed.Change(() => apply((e.Value as string ?? "").Trim()));
     static float Num(string s) => float.Parse(s, System.Globalization.CultureInfo.InvariantCulture);
+    internal static string Dp(float? v) => v?.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) ?? "";
+    /// <summary>Blank clears the override; otherwise dp, 0 to 40.</summary>
+    internal static float? ParseDp(string s) => s.Length == 0 ? null : Math.Clamp(Num(s), 0, 40);
     static string F(float f) => f.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
 }

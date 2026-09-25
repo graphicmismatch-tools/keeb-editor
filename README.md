@@ -1,8 +1,11 @@
 # keeb editor
 
+**Use it: https://graphicmismatch.github.io/keeb-editor/**
+
 A browser layout editor for [keeb](https://github.com/graphicmismatch/keeb), the fully customizable on-screen keyboard, in the spirit of VIA for QMK. It runs anywhere a modern browser does (desktop or tablet) and needs no install.
 
-- **Visual editing.** Drag keys to reorder them, including across rows. Click a key to edit its tap, label, width, long-press list, all 8 flick directions plus out-and-back, flick angles, mod-tap or tap-dance behavior, and swipeability.
+- **Visual editing.** Drag keys to reorder them, including across rows. Click a key to edit its tap, label, width, long-press list, all 8 flick directions plus out-and-back, per-direction flick-and-back and long flicks, a circle action, flick angles, mod-tap or tap-dance behavior, and swipeability.
+- **Key look.** Margin, padding and label sizes (legend, flick characters, hint, popup, preview), for the whole layout or one key. The preview draws them the way the phone does.
 - **Keycode palette.** Pick actions VIA-style, grouped as Basic, Keys, Layers (MO/TG/TO/OSL for every layer), Editing (cut/copy/paste, undo/redo, word jumps, Caps Word, case toggle), Media, System (Repeat, dynamic macros, hide or switch keyboard) and Special. You can also type any action in keeb's short syntax (`@macro:h|i|@enter`).
 - **Layout-wide settings.**
   - Name, language, input method (Hangul, transliteration, Telex, kana→kanji, pinyin…) and font.
@@ -39,7 +42,7 @@ git clone --recurse-submodules <this repo>    # or: git submodule update --init
 dotnet run --project src/KeebEditor           # → http://localhost:5000 (the port is printed)
 ```
 
-To host it anywhere static (GitHub Pages, Netlify, any web server), publish it:
+Every push to `master` publishes it to GitHub Pages (`.github/workflows/pages.yml`). To host it anywhere else static, publish it:
 ```sh
 dotnet publish src/KeebEditor -c Release -o out   # serve out/wwwroot
 ```

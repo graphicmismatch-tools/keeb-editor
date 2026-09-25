@@ -118,6 +118,7 @@ public sealed class Editor
             {
                 case "tap": key.Tap = action; break;
                 case "long": key.LongPress.Add(action); break;
+                case "circle": key.Circle = action; break;
                 case "hold": key.Behavior = key.Behavior is ModTap m ? m with { Hold = action } : new ModTap(action); break;
                 default: key.Flick[Enum.Parse<FlickDir>(Target)] = action; break;
             }
@@ -129,5 +130,9 @@ public sealed class Editor
     public string Label(Key key) => Labels.LabelFor(key) is { Length: > 0 } s ? s : key.Tap is SpaceAction ? Layout.Name : "";
     public string Label(KeyAction a) => Labels.LabelFor(a) is { Length: > 0 } s ? s : a is SpaceAction ? "space" : a is NoneAction ? "none" : "";
     public static string? Icon(KeyAction a) => Icons.For(a);
-    public static string? IconPath(string? name) => name is not null && Icons.Paths.TryGetValue(name, out var d) ? d : null;
+    public static string? IconPath(string? name) =>
+        name is not null && Icons.Paths.TryGetValue(IsMirrored(name) ? name[..^Icons.Mirrored.Length] : name, out var d) ? d : null;
+    /// <summary>Icons.Mirrored names draw their base icon flipped; this is the SVG transform for that, else null.</summary>
+    public static string? IconTransform(string? name) => name is not null && IsMirrored(name) ? "matrix(-1 0 0 1 960 0)" : null;
+    static bool IsMirrored(string name) => name.EndsWith(Icons.Mirrored);
 }

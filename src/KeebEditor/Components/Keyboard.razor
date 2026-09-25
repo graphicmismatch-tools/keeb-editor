@@ -17,31 +17,35 @@
         float font = Math.Min(r.H * 0.36f, r.W * 0.46f) / W * 100;
         var icon = k.Label is null ? Icons.For(k.Tap, tester?.Shift ?? false, tester?.Caps ?? false) : null;
         var longPress = Ed.Layout.LongPressFor(k);
+        float margin = Ed.Layout.MarginFor(k, Phone.KeyMargin), pad = Ed.Layout.PaddingFor(k, Phone.KeyPadding);
+        float label = Scale(k, s => s.Label), flick = Scale(k, s => s.Flick), hint = Scale(k, s => s.Hint);
+        bool quiet = k.Tap is SpaceAction && k.Label is null;
         <div class="key @(k == Ed.Selected ? "sel" : "") @(k == dragging ? "ghost" : "")"
-             style="left:@P(r.X / W);top:@P(r.Y / geo.Height);width:@P(r.W / W);height:@P(r.H / geo.Height);font-size:@(F(font))cqw"
+             style="left:@P(r.X / W);top:@P(r.Y / geo.Height);width:@P(r.W / W);height:@P(r.H / geo.Height);font-size:@(F(font))cqw;padding:@(Cqw(margin))"
              draggable="@((!Testing).ToString().ToLowerInvariant())" tabindex="0" role="gridcell"
              aria-label="@Describe(k)" aria-selected="@(k == Ed.Selected)"
              @ondragstart="() => dragging = k" @ondragend="() => dragging = null"
              @onclick="() => Click(k)" @onkeydown="e => Keydown(e, k)">
             <div class="cap" style="background:@Css(mod ? t.ModKey : t.Key);color:@Css(t.Text)">
-                @if (Editor.IconPath(icon) is { } d)
-                {
-                    <svg class="icon main" viewBox="0 -960 960 960" aria-hidden="true"><path d="@d" fill="currentColor" /></svg>
-                }
-                else
-                {
-                    <span class="main @(k.Tap is SpaceAction && k.Label is null ? "quiet" : "")"
-                          style="@(k.Tap is SpaceAction && k.Label is null ? $"color:{Css(t.HintText)}" : "")">@Label(k)</span>
-                }
-                @foreach (var (dir, a) in k.Flick)
-                {
-                    if (dir == FlickDir.Return) continue;
-                    <span class="flick @dir" style="color:@Css(t.HintText)"><ActionView Ed="Ed" Action="a" /></span>
-                }
-                @if (k.Flick.Count == 0 && longPress.Count > 0)
-                {
-                    <span class="hint" style="color:@Css(t.HintText)"><ActionView Ed="Ed" Action="longPress[0]" /></span>
-                }
+                <div class="face" style="inset:@(Cqw(pad))">
+                    @if (Editor.IconPath(icon) is { } d)
+                    {
+                        <svg class="icon main" style="font-size:@(F(label))em" viewBox="0 -960 960 960" aria-hidden="true"><path d="@d" transform="@Editor.IconTransform(icon)" fill="currentColor" /></svg>
+                    }
+                    else
+                    {
+                        <span class="main" style="font-size:@(F(label * (quiet ? 0.75f : 1)))em;@(quiet ? $"color:{Css(t.HintText)}" : "")">@Label(k)</span>
+                    }
+                    @foreach (var (dir, a) in k.Flick)
+                    {
+                        if (dir == FlickDir.Return) continue;
+                        <span class="flick @dir" style="color:@Css(t.HintText);font-size:@(F(0.42f * flick))em"><ActionView Ed="Ed" Action="a" /></span>
+                    }
+                    @if (k.Flick.Count == 0 && longPress.Count > 0)
+                    {
+                        <span class="hint" style="color:@Css(t.HintText);font-size:@(F(0.45f * hint))em"><ActionView Ed="Ed" Action="longPress[0]" /></span>
+                    }
+                </div>
             </div>
             @if (dragging is not null && dragging != k)
             {
@@ -66,6 +70,11 @@
 
 @code {
     const float W = 1000;
+    // ponytail: a phone keyboard is about 400 dp wide, so 1 dp ≈ 0.25% of the preview; exact per phone would need its width.
+    const float PhoneDp = 400;
+    static readonly Settings Phone = new(); // the phone's defaults, for keys and layouts that don't set their own
+    static string Cqw(float dp) => F(dp / PhoneDp * 100) + "cqw";
+    float Scale(Key k, Func<LabelScale, float?> part) => Ed.Layout.ScaleFor(k, Phone.LabelScale, part);
     [Parameter, EditorRequired] public Editor Ed { get; set; } = null!;
     [Parameter] public bool Testing { get; set; }
 

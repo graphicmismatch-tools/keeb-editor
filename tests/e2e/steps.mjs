@@ -32,6 +32,21 @@ export default async function (page) {
   const row0 = JSON.stringify(l.layers[0].rows[0]);
   check(row0.includes('qertyuiopw'), 'drag moved w after p: ' + row0.slice(0, 60));
 
+  // Key look and gestures: layout margin, a key's label size, circle and long flick land in the JSON.
+  await page.fill('section:has(h2:text("Key look")) label:has-text("Margin") input', '5');
+  await page.press('section:has(h2:text("Key look")) label:has-text("Margin") input', 'Tab');
+  await key('e').click();
+  await page.fill('fieldset:has(legend:text("Look")) .three label:has-text("Label") input', '1.5');
+  await page.press('fieldset:has(legend:text("Look")) .three label:has-text("Label") input', 'Tab');
+  await page.fill('label:has-text("Circle") input', 'E');
+  await page.press('label:has-text("Circle") input', 'Tab');
+  await page.fill('label:has-text("Long flick") input', 'N=3');
+  await page.press('label:has-text("Long flick") input', 'Tab');
+  l = await json();
+  const e = l.layers[0].rows[0].keys.find(k => k.tap?.text === 'e');
+  check(l.keyMargin === 5, 'layout margin saved: ' + l.keyMargin);
+  check(e?.labelScale?.label === 1.5 && e?.circle?.text === 'E' && e?.longFlick?.N?.text === '3', 'key label size, circle and long flick saved: ' + JSON.stringify(e).slice(0, 120));
+
   // Test typing: h e l l o through the real KeyboardState, with suggestions.
   await page.click('button[title="Type on the preview"]');
   for (const c of 'hello') await key(c).click();
