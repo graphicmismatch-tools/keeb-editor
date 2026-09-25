@@ -44,6 +44,12 @@ To host it anywhere static (GitHub Pages, Netlify, any web server), publish it:
 dotnet publish src/KeebEditor -c Release -o out   # serve out/wwwroot
 ```
 
+The browser test clicks through the editor: select a key, assign from the palette, undo, drag a key, and test-type with suggestions. It runs in dark and light mode.
+```sh
+dotnet run --project src/KeebEditor --urls http://localhost:5199 &
+cd tests/e2e && npm install && npm test
+```
+
 When keeb changes, pull its latest version with `git submodule update --remote keeb`.
 
 ## License
