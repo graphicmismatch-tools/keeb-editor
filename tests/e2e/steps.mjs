@@ -54,4 +54,13 @@ export default async function (page) {
   check(typed.includes('hello'), 'test typing shows "hello": ' + typed);
   const sugg = await page.textContent('.tester .suggest');
   check(sugg.length > 0, 'suggestions appear: ' + sugg);
+
+  // Chords: typed as text, saved into the JSON; a built-in chord layout shows its chords.
+  await page.fill('label:has-text("Chords") textarea', 'q w = @enter\na s = x');
+  await page.press('label:has-text("Chords") textarea', 'Tab');
+  l = await json();
+  check(l.chords?.length === 2 && l.chords[0].keys.join() === 'q,w' && l.chords[0].action.type === 'enter', 'chords saved: ' + JSON.stringify(l.chords));
+  await page.selectOption('select[aria-label="Start from a built-in layout"]', 'braille');
+  const braille = await page.inputValue('label:has-text("Chords") textarea');
+  check(braille.split('\n').includes('d1 d2 = b'), 'braille shows its chords');
 }

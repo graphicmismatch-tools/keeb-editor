@@ -1,4 +1,4 @@
-@* Layout-wide settings: identity, layers, input method, accents, flick angles, combos, leaders and own colors. *@
+@* Layout-wide settings: identity, layers, input method, accents, flick angles, combos, chords, leaders and own colors. *@
 @{ var L = Ed.Layout; }
 <section>
     <h2>Layout</h2>
@@ -56,16 +56,19 @@
     <h2>Typing extras</h2>
     <div class="fields">
         <label>Accents <span class="muted">(one per line: e=éèêë)</span>
-            <textarea rows="3" class="mono" @onchange="e => Set(e, s => L.Accents = s.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim().Split('=', 2)).Where(p => p.Length == 2 && p[0].Length > 0).ToDictionary(p => p[0], p => p[1]))">@string.Join('\n', L.Accents.Select(kv => $"{kv.Key}={kv.Value}"))</textarea>
+            <textarea rows="3" class="mono" @onchange="e => Set(e, s => L.Accents = s.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim().Split('=', 2)).Where(p => p.Length == 2 && p[0].Length > 0).ToDictionary(p => p[0], p => p[1]))" value="@(string.Join('\n', L.Accents.Select(kv => $"{kv.Key}={kv.Value}")))"></textarea>
         </label>
         <label>Flick angles <span class="muted">(degrees, 0 = east, counter-clockwise; blank = 45° sectors)</span>
             <input class="mono" placeholder="N=45-135 E=315-45 S=225-315 W=135-225" value="@ActionSyntax.FormatZones(L.FlickZones)" @onchange="e => Set(e, s => L.FlickZones = ActionSyntax.ParseZones(s))" />
         </label>
         <label>Combos <span class="muted">(one per line: key ids + action [ms], e.g. j k = @@key:Esc 60)</span>
-            <textarea rows="3" class="mono" @onchange="e => Set(e, s => L.Combos = ParseCombos(s))">@string.Join('\n', L.Combos.Select(c => $"{string.Join(' ', c.Keys)} = {ActionSyntax.Format(c.Action)} {c.WindowMs}"))</textarea>
+            <textarea rows="3" class="mono" @onchange="e => Set(e, s => L.Combos = ParseCombos(s))" value="@(string.Join('\n', L.Combos.Select(c => $"{string.Join(' ', c.Keys)} = {ActionSyntax.Format(c.Action)} {c.WindowMs}")))"></textarea>
+        </label>
+        <label>Chords <span class="muted">(one per line: keys held together = action, e.g. d1 d2 = b; types when the last key lifts. Keys: @string.Join(' ', L.KeyNames))</span>
+            <textarea rows="4" class="mono" placeholder="d1 d2 = b" value="@ActionSyntax.FormatChords(L.Chords)" @onchange="e => Set(e, s => L.Chords = ActionSyntax.ParseChords(s))"></textarea>
         </label>
         <label>Leader sequences <span class="muted">(one per line: sequence = action, e.g. sig = — graphicmismatch)</span>
-            <textarea rows="3" class="mono" @onchange="e => Set(e, s => L.Leaders = ParseLeaders(s))">@string.Join('\n', L.Leaders.Select(l => $"{l.Sequence} = {ActionSyntax.Format(l.Action)}"))</textarea>
+            <textarea rows="3" class="mono" @onchange="e => Set(e, s => L.Leaders = ParseLeaders(s))" value="@(string.Join('\n', L.Leaders.Select(l => $"{l.Sequence} = {ActionSyntax.Format(l.Action)}")))"></textarea>
         </label>
     </div>
 </section>

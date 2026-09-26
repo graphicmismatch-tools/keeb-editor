@@ -10,7 +10,7 @@ A browser layout editor for [keeb](https://github.com/graphicmismatch/keeb), the
 - **Layout-wide settings.**
   - Name, language, input method (Hangul, transliteration, Telex, kana→kanji, pinyin…) and font.
   - Layers: add, rename (every reference follows) and delete.
-  - Accents, flick angles, combos and leader sequences.
+  - Accents, flick angles, combos, chords (braille and other chorded layouts) and leader sequences.
   - The layout's own colors, with WCAG contrast checks.
 - **Test typing.** This runs the real keeb engine, including autocorrect, suggestions, composers and layer switching, so what you type here is what the phone does.
 - **Safety net.** Undo/redo, a raw JSON view you can edit, an autosaved draft in the browser, and a warning whenever the layout wouldn't load on the phone.

@@ -62,7 +62,7 @@ else
             <input class="mono" value="@ActionSyntax.FormatBehavior(k.Behavior)" @onchange="e => Set(e, s => k.Behavior = ActionSyntax.ParseBehavior(s))" />
         </label>
         <div class="two">
-            <label>Id <span class="muted">(combos, leader)</span><input value="@k.Id" @onchange="e => Set(e, s => k.Id = s.Length == 0 ? null : s)" /></label>
+            <label>Id <span class="muted">(combos, chords, leader)</span><input value="@k.Id" @onchange="e => Set(e, s => k.Id = s.Length == 0 ? null : s)" /></label>
             <label class="check"><input type="checkbox" checked="@k.Swipeable" @onchange="e => Ed.Change(() => k.Swipeable = e.Value is true)" /> Swipeable</label>
         </div>
 
