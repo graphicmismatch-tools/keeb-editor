@@ -80,6 +80,12 @@ public sealed class Editor
         Refresh();
     }
 
+    float resizeFrom;
+    /// <summary>Dragging a key's right edge: one undo step for the whole drag, snapped by LayoutEdit.ResizeWidth.</summary>
+    public void BeginResize(Key key) { Snapshot(); resizeFrom = key.Width; }
+    public void Resize(Key key, float dragUnits) { key.Width = LayoutEdit.ResizeWidth(resizeFrom, dragUnits); Changed?.Invoke(); }
+    public void EndResize(Key key) { if (key.Width == resizeFrom) undo.Pop(); Changed?.Invoke(); }
+
     public void Undo() => Step(undo, redo);
     public void Redo() => Step(redo, undo);
 

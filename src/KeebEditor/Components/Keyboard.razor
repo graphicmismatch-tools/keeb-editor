@@ -1,5 +1,7 @@
 @* The layer drawn from Keeb.Core.Geometry, in the preview theme. Click selects, drag moves keys (drop on a key's
-   left or right half). In test mode, clicks type through the real KeyboardState instead, like the phone would. *@
+   left or right half), and the selected key's right-edge handle changes its width. In test mode, clicks type through
+   the real KeyboardState instead, like the phone would. *@
+@inject IJSRuntime JS
 @{
     var t = Ed.Theme;
     var rows = Ed.Layer.Rows;
@@ -7,7 +9,7 @@
     float h = W / units * rows.Sum(r => r.Height) * 1.15f;
     var geo = new Geometry(Ed.Layout, Ed.LayerId, W, Math.Max(h, 1));
 }
-<div class="kb @(dragging is not null ? "dragging" : "") @(Testing ? "testing" : "")"
+<div @ref="kbEl" class="kb @(dragging is not null ? "dragging" : "") @(Testing ? "testing" : "")"
      style="aspect-ratio:@W/@geo.Height;background:@Css(t.Background)" role="grid" aria-label="Keyboard layer @Ed.LayerId">
     @foreach (var box in geo.Keys)
     {
@@ -47,6 +49,13 @@
                     }
                 </div>
             </div>
+            @if (k == Ed.Selected && !Testing)
+            {
+                <div class="resize" draggable="true" title="Drag to change the width" aria-label="Resize @Describe(k)"
+                     @ondragstart="e => StartResize(e, k, geo.Unit)" @ondragstart:stopPropagation
+                     @ondrag="e => Resizing(e, k)" @ondragend="() => Ed.EndResize(k)" @ondragend:stopPropagation
+                     @onclick:stopPropagation></div>
+            }
             @if (dragging is not null && dragging != k)
             {
                 <div class="drop left" @ondragover:preventDefault @ondrop="() => Drop(k, false)"></div>
@@ -90,6 +99,22 @@
 
     string Label(Key k) => Testing && tester is not null ? tester.LabelFor(k) is { Length: > 0 } s ? s : Ed.Label(k) : Ed.Label(k);
     string Describe(Key k) => (k.Label ?? Ed.Label(k.Tap)) is { Length: > 0 } s ? s : k.Tap.GetType().Name.Replace("Action", "");
+
+    ElementReference kbEl;
+    double resizeX, unitPx; // where the resize drag started, and one key unit in screen pixels
+
+    async Task StartResize(DragEventArgs e, Key k, float unit)
+    {
+        (resizeX, unitPx) = (e.ClientX, 0);
+        Ed.BeginResize(k);
+        unitPx = unit / W * await JS.InvokeAsync<double>("keeb.width", kbEl);
+    }
+
+    void Resizing(DragEventArgs e, Key k)
+    {
+        if (unitPx <= 0 || e.ClientX == 0 && e.ClientY == 0) return; // not measured yet, or the drag's last event (always 0,0)
+        Ed.Resize(k, (float)((e.ClientX - resizeX) / unitPx));
+    }
 
     void Drop(Key target, bool after)
     {

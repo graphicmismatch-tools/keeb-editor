@@ -55,6 +55,22 @@ export default async function (page) {
   const sugg = await page.textContent('.tester .suggest');
   check(sugg.length > 0, 'suggestions appear: ' + sugg);
 
+  // Resize: drag the selected key's right-edge handle 1.5 keys to the right; one undo puts it back.
+  await page.click('button[title="Type on the preview"]'); // back to editing
+  await key('z').click();
+  const zBox = await key('z').boundingBox(), handle = await page.locator('.key.sel .resize').boundingBox();
+  const hx = handle.x + handle.width / 2, hy = handle.y + handle.height / 2;
+  await page.mouse.move(hx, hy);
+  await page.mouse.down();
+  await page.mouse.move(hx + 10, hy, { steps: 3 });
+  await page.mouse.move(hx + zBox.width * 1.5, hy, { steps: 20 });
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  const zWidth = async () => (await json()).layers[0].rows[2].keys.find(k => k.tap?.text === 'z')?.width ?? 1;
+  check(await zWidth() === 2.5, 'resize handle made z 2.5 wide: ' + await zWidth());
+  await page.click('button[title="Undo"]');
+  check(await zWidth() === 1, 'one undo restored z');
+
   // Chords: typed as text, saved into the JSON; a built-in chord layout shows its chords.
   await page.fill('label:has-text("Chords") textarea', 'q w = @enter\na s = x');
   await page.press('label:has-text("Chords") textarea', 'Tab');
