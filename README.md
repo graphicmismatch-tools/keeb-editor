@@ -2,7 +2,7 @@
 
 **Use it: https://graphicmismatch.github.io/keeb-editor/**
 
-A browser layout editor for [keeb](https://github.com/graphicmismatch/keeb), the fully customizable on-screen keyboard, in the spirit of VIA for QMK. It runs anywhere a modern browser does (desktop or tablet) and needs no install.
+A browser layout editor for [keeb](https://github.com/graphicmismatch-tools/keeb), the fully customizable on-screen keyboard, in the spirit of VIA for QMK. It runs anywhere a modern browser does (desktop or tablet) and needs no install.
 
 - **Visual editing.** Drag keys to reorder them, including across rows, and drag the selected key's right edge to change its width (in quarter-key steps). Click a key to edit its tap, label, width, long-press list, all 8 flick directions plus out-and-back, per-direction flick-and-back and long flicks, a circle action, flick angles, mod-tap or tap-dance behavior, and swipeability.
 - **Key look.** Margin, padding and label sizes (legend, flick characters, hint, popup, preview), for the whole layout or one key. The preview draws them the way the phone does.
