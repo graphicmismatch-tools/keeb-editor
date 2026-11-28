@@ -17,6 +17,8 @@ public sealed class Editor
     public string PreviewTheme { get; set; } = Themes.Auto;
     public bool SystemDark { get; set; } = true;
     public string? Error { get; private set; }
+    /// <summary>The built-in layout this one started from (or names as its base), for "changes from base" and override downloads.</summary>
+    public string? BaseName { get; set; }
     public KeyboardState Labels { get; private set; } = null!;
 
     readonly Stack<string> undo = new(), redo = new();
@@ -42,17 +44,74 @@ public sealed class Editor
         Refresh();
     }
 
-    /// <summary>Parses and validates JSON (from a file or the JSON pane). Base layouts resolve against the built-ins.</summary>
+    /// <summary>
+    /// Parses and validates JSON (from a file or the JSON pane). Base layouts resolve against the built-ins.
+    /// Anything without layers is tried as keyboard-layout-editor.com data.
+    /// </summary>
     public bool TryLoadJson(string json, bool keepHistory = true)
     {
         try
         {
-            var l = Json.LoadLayout(json);
+            bool keeb = json.Contains("\"layers\"") || json.Contains("\"base\"");
+            var l = keeb ? Json.LoadLayout(json) : Kle.Import(json);
+            if (keeb && BaseOf(json) is { } b) BaseName = b;
             if (l.Layers.Count == 0) throw new FormatException("the layout has no layers");
             Load(l, keepHistory);
             return true;
         }
         catch (Exception e) { Error = e.Message; Changed?.Invoke(); return false; }
+    }
+
+    static string? BaseOf(string json)
+    {
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(json, new() { AllowTrailingCommas = true, CommentHandling = System.Text.Json.JsonCommentHandling.Skip });
+            return doc.RootElement.TryGetProperty("base", out var b) && b.GetString() is { Length: > 0 } name && Json.BuiltinLayoutNames.Contains(name) ? name : null;
+        }
+        catch (System.Text.Json.JsonException) { return null; }
+    }
+
+    /// <summary>The layout as an override of BaseName (only what differs), or null when it can't be one.</summary>
+    public Layout? Override
+    {
+        get
+        {
+            if (BaseName is not { } b || !Json.BuiltinLayoutNames.Contains(b)) return null;
+            var key = b + "\n" + Json.Save(Layout); // every panel asks on each render: work it out once per version
+            if (overrideFor != key) (overrideFor, overrideOf) = (key, LayoutEdit.AsOverride(Layout, Json.BuiltinLayout(b), b));
+            return overrideOf;
+        }
+    }
+    string? overrideFor;
+    Layout? overrideOf;
+
+    /// <summary>What differs from the base, one line each, for the Changes panel.</summary>
+    public List<string> Changes()
+    {
+        if (BaseName is not { } b || !Json.BuiltinLayoutNames.Contains(b)) return [];
+        if (Override is not { } o) return ["Some base rows, layers or extras were removed or reordered, so this can only be saved as a whole layout."];
+        var baseLayout = Json.BuiltinLayout(b);
+        var lines = new List<string>();
+        void Layers(List<Layer>? layers, string what)
+        {
+            foreach (var l in layers ?? [])
+            {
+                var rows = l.Rows.Select((r, i) => (r, i)).Where(x => x.r is not null).Select(x => x.i + 1).ToList();
+                bool isNew = (what == "" ? baseLayout.Find(l.Id) : baseLayout.Landscape?.Find(x => x.Id == l.Id)) is null;
+                lines.Add(isNew ? $"New {what}layer {l.Id}" : $"{what}{l.Id}: row{(rows.Count == 1 ? "" : "s")} {string.Join(", ", rows)}");
+            }
+        }
+        Layers(o.Layers, "");
+        Layers(o.Landscape, "landscape ");
+        if (o.Accents.Count > 0) lines.Add("Accents: " + string.Join(' ', o.Accents.Keys));
+        if (o.Shifted.Count > 0) lines.Add("Shift overrides: " + string.Join(' ', o.Shifted.Keys));
+        if (o.Combos.Count + o.Chords.Count + o.Leaders.Count > 0) lines.Add($"Added {o.Combos.Count} combos, {o.Chords.Count} chords, {o.Leaders.Count} leader sequences");
+        if (o.Composer is not null) lines.Add("Input method: " + o.Composer);
+        if (o.Theme is not null) lines.Add("Own colors");
+        if (o.Font is not null) lines.Add("Font: " + o.Font);
+        if (o.Language != baseLayout.Language) lines.Add("Language: " + o.Language);
+        return lines;
     }
 
     public void Select(Key? key) { Selected = key; Error = null; Changed?.Invoke(); }

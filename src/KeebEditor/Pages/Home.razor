@@ -14,10 +14,14 @@
         </select>
     </label>
     <label class="flat button">
-        <Icon Name="upload_file" /> Open .json
-        <InputFile OnChange="Open" accept=".json,application/json" class="sr-only" />
+        <Icon Name="upload_file" /> Open .json or KLE
+        <InputFile OnChange="Open" accept=".json,.txt,application/json,text/plain" class="sr-only" />
     </label>
     <button class="primary" @onclick="Download"><Icon Name="save" /> Download .json</button>
+    @if (Ed.Override is not null)
+    {
+        <button class="flat" title="Only what differs from @Ed.BaseName, with base set" @onclick="DownloadOverride"><Icon Name="save" /> As override of @Ed.BaseName</button>
+    }
     <span class="grow"></span>
     <button class="iconbtn" title="Undo" disabled="@(!Ed.CanUndo)" @onclick="Ed.Undo"><Icon Name="undo" /></button>
     <button class="iconbtn" title="Redo" disabled="@(!Ed.CanRedo)" @onclick="Ed.Redo"><Icon Name="redo" /></button>
@@ -87,12 +91,14 @@
         Ed.Changed += OnChanged;
         Ed.SystemDark = await JS.InvokeAsync<bool>("keeb.dark");
         if (await JS.InvokeAsync<string?>("keeb.load", "keeb.draft") is { Length: > 0 } draft) Ed.TryLoadJson(draft, keepHistory: false);
+        Ed.BaseName = await JS.InvokeAsync<string?>("keeb.load", "keeb.base") is { Length: > 0 } b ? b : "qwerty"; // a fresh editor starts from qwerty
     }
 
     void OnChanged()
     {
         if (showJson) json = Ed.SaveJson();
         _ = JS.InvokeVoidAsync("keeb.save", "keeb.draft", Ed.SaveJson()); // autosave the working copy
+        _ = JS.InvokeVoidAsync("keeb.save", "keeb.base", Ed.BaseName ?? "");
         StateHasChanged();
     }
 
@@ -100,16 +106,23 @@
 
     void StartFrom(ChangeEventArgs e)
     {
-        if (e.Value is string { Length: > 0 } name) Ed.Load(Json.BuiltinLayout(name), keepHistory: true);
+        if (e.Value is string { Length: > 0 } name) { Ed.BaseName = name; Ed.Load(Json.BuiltinLayout(name), keepHistory: true); }
     }
 
     async Task Open(InputFileChangeEventArgs e)
     {
         using var reader = new StreamReader(e.File.OpenReadStream(maxAllowedSize: 4 * 1024 * 1024));
-        Ed.TryLoadJson(await reader.ReadToEndAsync());
+        var text = await reader.ReadToEndAsync();
+        if (!text.Contains("\"base\"")) Ed.BaseName = null; // a whole layout from a file: no base unless it names one
+        Ed.TryLoadJson(text);
     }
 
     async Task Download() => await JS.InvokeVoidAsync("keeb.download", $"{Ed.Layout.Name}.json", Ed.SaveJson());
+
+    async Task DownloadOverride()
+    {
+        if (Ed.Override is { } o) await JS.InvokeVoidAsync("keeb.download", $"{Ed.Layout.Name}.json", Json.Save(o));
+    }
 
     void ToggleJson() { showJson = !showJson; json = Ed.SaveJson(); }
 

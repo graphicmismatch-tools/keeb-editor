@@ -79,4 +79,20 @@ export default async function (page) {
   await page.selectOption('select[aria-label="Start from a built-in layout"]', 'braille');
   const braille = await page.inputValue('label:has-text("Chords") textarea');
   check(braille.split('\n').includes('d1 d2 = b'), 'braille shows its chords');
+
+  // Changes from the base, a shift override, and saving as an override.
+  await page.selectOption('select[aria-label="Start from a built-in layout"]', 'qwerty');
+  check((await page.textContent('section:has(h2:text("Changes from qwerty"))')).includes('Nothing yet'), 'a fresh qwerty has no changes');
+  await page.fill('label:has-text("Shift overrides") textarea', ',=;');
+  await page.press('label:has-text("Shift overrides") textarea', 'Tab');
+  l = await json();
+  check(l.shifted?.[','] === ';', 'shift override saved: ' + JSON.stringify(l.shifted));
+  check((await page.textContent('section:has(h2:text("Changes from qwerty"))')).includes('Shift overrides: ,'), 'changes list the override');
+  check(await page.locator('button:has-text("As override of qwerty")').count() === 1, 'override download offered');
+
+  // A keyboard-layout-editor.com file opens as a layout.
+  await page.setInputFiles('input[type=file]', { name: 'kle.txt', mimeType: 'text/plain', buffer: Buffer.from('["!\\n1","Q",{w:2},"Backspace"],\n[{w:6},""]') });
+  await page.waitForTimeout(500);
+  l = await json();
+  check(l.layers[0].rows.length === 2 && l.shifted?.['1'] === '!', 'KLE import: ' + JSON.stringify(l.layers[0].rows).slice(0, 80));
 }

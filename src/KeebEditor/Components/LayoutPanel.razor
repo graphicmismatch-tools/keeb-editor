@@ -58,6 +58,9 @@
         <label>Accents <span class="muted">(one per line: e=éèêë)</span>
             <textarea rows="3" class="mono" @onchange="e => Set(e, s => L.Accents = s.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim().Split('=', 2)).Where(p => p.Length == 2 && p[0].Length > 0).ToDictionary(p => p[0], p => p[1]))" value="@(string.Join('\n', L.Accents.Select(kv => $"{kv.Key}={kv.Value}")))"></textarea>
         </label>
+        <label>Shift overrides <span class="muted">(one per line: what a key types with Shift instead of its capital, e.g. ,=;)</span>
+            <textarea rows="2" class="mono" @onchange="e => Set(e, s => L.Shifted = s.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim().Split('=', 2)).Where(p => p.Length == 2 && p[0].Length > 0 && p[1].Length > 0).ToDictionary(p => p[0], p => p[1]))" value="@(string.Join('\n', L.Shifted.Select(kv => $"{kv.Key}={kv.Value}")))"></textarea>
+        </label>
         <label>Flick angles <span class="muted">(degrees, 0 = east, counter-clockwise; blank = 45° sectors)</span>
             <input class="mono" placeholder="N=45-135 E=315-45 S=225-315 W=135-225" value="@ActionSyntax.FormatZones(L.FlickZones)" @onchange="e => Set(e, s => L.FlickZones = ActionSyntax.ParseZones(s))" />
         </label>
@@ -72,6 +75,20 @@
         </label>
     </div>
 </section>
+
+@if (Ed.BaseName is { } baseName)
+{
+    <section>
+        <h2>Changes from @baseName</h2>
+        @if (Ed.Changes() is [_, ..] changes)
+        {
+            <ul class="checks">
+                @foreach (var c in changes) { <li>@c</li> }
+            </ul>
+        }
+        else { <p class="muted">Nothing yet: this is @baseName as it ships.</p> }
+    </section>
+}
 
 <section>
     <h2>Colors</h2>
